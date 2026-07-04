@@ -1,20 +1,25 @@
 import sqlite3
 
 def init_db():
-    # هذا بيسوي ملف قاعدة بيانات مخفي عندك في السيرفر
     conn = sqlite3.connect('n7l_store.db')
     cursor = conn.cursor()
     
-    # جدول المستخدمين
-    cursor.execute('''CREATE TABLE IF NOT EXISTS users 
-                      (user_id INTEGER PRIMARY KEY, username TEXT, is_buyer INTEGER DEFAULT 0, is_banned INTEGER DEFAULT 0)''')
+    # جدول الطلبات: يحفظ طلبات المستخدمين (الآيدي، اليوزر، واسم الغرض، الحالة)
+    cursor.execute('''CREATE TABLE IF NOT EXISTS orders (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER,
+                        username TEXT,
+                        full_name TEXT,
+                        product_name TEXT,
+                        status TEXT)''')
     
-    # جدول الطلبات
-    cursor.execute('''CREATE TABLE IF NOT EXISTS orders 
-                      (order_id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, product_name TEXT, status TEXT)''')
+    # جدول المشترين المعتمدين: لمنع التسريب
+    cursor.execute('''CREATE TABLE IF NOT EXISTS verified_users (
+                        user_id INTEGER PRIMARY KEY,
+                        is_buyer BOOLEAN)''')
     
     conn.commit()
     conn.close()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     init_db()
