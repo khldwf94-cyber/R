@@ -1,13 +1,21 @@
 import os
 import telebot
 from telebot import types
-import sqlite3
 
 TOKEN = os.environ.get('BOT_TOKEN')
 bot = telebot.TeleBot(TOKEN)
 
+# بيانات البنوك المحدثة
+BANK_DETAILS = {
+    'الراجحي': "رقم: 378000010006080187221\nآيبان: SA14 8000 0378 6080 1018 7221\nصاحب الحساب: محمد حسن عبدالله عتين",
+    'الأهلي': "رقم: 74300000606900\nآيبان: SA36 1000 0074 3000 0060 6900",
+    'STC Pay': "رقم حساب: 1023327364\nآيبان: SA5278000000001023327364",
+    'برق': "آيبان: SA0530100991103822484251",
+    'يو باي': "آيبان: SA9480200841178222121011"
+}
+
 PRODUCTS = {
-    '1': 'محاكي الحوادث مع المودات (20 ⃁)', '2': 'شرح تركيب المودات (10 ⃁)',
+    '1': 'محاكي الحوادث مع (20 ⃁)', '2': 'شرح تركيب المودات (10 ⃁)',
     '3': 'بكج مودات مدفوعة (45 ⃁)', '4': 'لعبة سونرنر (15 ⃁)',
     '5': 'بكج المحاكي الكامل (35 ⃁)', '6': 'بكج لعبتين (40 ⃁)'
 }
@@ -16,20 +24,21 @@ PRODUCTS = {
 def start(message):
     markup = types.InlineKeyboardMarkup()
     for key, value in PRODUCTS.items():
-        markup.add(types.InlineKeyboardButton(value, callback_data=f"product_{key}"))
-    
-    text = (f"🐝 نورت متجر N7L STORE\n\nالاسم: {message.from_user.first_name}\n"
-            f"اليوزر: @{message.from_user.username}\nالايدي: {message.from_user.id}\n\n"
-            "الرجاء اختيار الغرض المطلوب:")
-    bot.reply_to(message, text, reply_markup=markup)
+        markup.add(types.InlineKeyboardButton(value, callback_data=f"prod_{key}"))
+    bot.reply_to(message, "🐝 نورت متجر N7L STORE، اختر الغرض:", reply_markup=markup)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith('product_'))
-def product_selected(call):
-    product_id = call.data.split('_')[1]
-    product_name = PRODUCTS[product_id]
-    
-    # هنا سنضيف لاحقاً منطق اختيار البنوك
-    bot.answer_callback_query(call.id, f"تم اختيار: {product_name}")
-    bot.send_message(call.message.chat.id, f"لقد اخترت {product_name}. جاري تجهيز بيانات البنوك...")
+@bot.callback_query_handler(func=lambda call: call.data.startswith('prod_'))
+def choose_bank(call):
+    markup = types.InlineKeyboardMarkup()
+    for bank in BANK_DETAILS.keys():
+        markup.add(types.InlineKeyboardButton(bank, callback_data=f"bank_{bank}"))
+    bot.edit_message_text("ممتاز! اختر البنك للتحويل:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('bank_'))
+def show_bank_details(call):
+    bank_name = call.data.split('_')[1]
+    details = BANK_DETAILS[bank_name]
+    msg = f"📋 تفاصيل الدفع:\n\nالبنك: {bank_name} 🏦\n{details}\n\n📌 بعد التحويل أرسل الإيصال لبوت التحقق."
+    bot.send_message(call.message.chat.id, msg)
 
 bot.infinity_polling()
