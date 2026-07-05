@@ -40,14 +40,37 @@ def show_bank_details(call):
     bank_name = call.data.split('_')[1]
     details = BANK_DETAILS[bank_name]
     msg = f"📋 تفاصيل الدفع:\n\nالبنك: {bank_name} 🏦\n{details}\n\n📌 بعد التحويل أرسل الإيصال (صورة) لهذا البوت."
-    bot.send_message(call.message.chat.id, msg)
-
-# --- نظام استقبال الإيصالات الجديد ---
+    bot.send_message(call.message.chat.id, 
+    # --- نظام استقبال الإيصالات مع أزرار القبول والرفض ---
 @bot.message_handler(content_types=['photo'])
 def handle_receipt(message):
-    # إرسال الصورة للمدير (أنت)
-    bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=f"🔔 إيصال جديد من المستخدم: {message.chat.id}\nالاسم: {message.chat.first_name}")
+    ADMIN_ID = "ضع_رقم_الأيدي_الخاص_بك_هنا" # <--- ضع رقم الأيدي الخاص بك هنا!
+    
+    # إنشاء أزرار القبول والرفض
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton("✅ قبول", callback_data=f"accept_{message.chat.id}"),
+        types.InlineKeyboardButton("❌ رفض", callback_data=f"reject_{message.chat.id}")
+    )
+    
+    # إرسال الصورة لك مع الأزرار
+    bot.send_photo(ADMIN_ID, message.photo[-1].file_id, 
+                   caption=f"🔔 إيصال جديد من: {message.chat.first_name}\nID: {message.chat.id}", 
+                   reply_markup=markup)
+    
     # الرد على العميل
     bot.reply_to(message, "✅ تم استلام إيصالك، جاري التحقق من قبل الإدارة.")
 
+# إضافة دالة لتعمل الأزرار عند الضغط عليها
+@bot.callback_query_handler(func=lambda call: call.data.startswith(('accept_', 'reject_')))
+def handle_approval(call):
+    action, user_id = call.data.split('_')
+    if action == 'accept':
+        bot.send_message(user_id, "تم قبول طلبك! شكراً لك.")
+        bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption="تم قبول الطلب ✅")
+    else:
+        bot.send_message(user_id, "عذراً، تم رفض طلبك.")
+        bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption="تم رفض الطلب ❌")
+
+# تشغيل البوت
 bot.infinity_polling()
