@@ -26,7 +26,7 @@ def start(message):
     markup = types.InlineKeyboardMarkup()
     for key, value in PRODUCTS.items():
         markup.add(types.InlineKeyboardButton(value, callback_data=f"prod_{key}"))
-    bot.reply_to(message, "🐝 نورت متجر N7L STORE، اختر الغرض:", reply_markup=markup)
+    bot.reply_to(message, " نورت متجر N7L STORE، اختر الغرض:", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('prod_'))
 def choose_bank(call):
