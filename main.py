@@ -3,6 +3,7 @@ import telebot
 from telebot import types
 
 TOKEN = os.environ.get('BOT_TOKEN')
+ADMIN_ID = "5432340735" # <--- ضع رقم الأيدي الخاص بك هنا!
 bot = telebot.TeleBot(TOKEN)
 
 # بيانات البنوك المحدثة
@@ -38,7 +39,15 @@ def choose_bank(call):
 def show_bank_details(call):
     bank_name = call.data.split('_')[1]
     details = BANK_DETAILS[bank_name]
-    msg = f"📋 تفاصيل الدفع:\n\nالبنك: {bank_name} 🏦\n{details}\n\n📌 بعد التحويل أرسل الإيصال لبوت التحقق."
+    msg = f"📋 تفاصيل الدفع:\n\nالبنك: {bank_name} 🏦\n{details}\n\n📌 بعد التحويل أرسل الإيصال (صورة) لهذا البوت."
     bot.send_message(call.message.chat.id, msg)
+
+# --- نظام استقبال الإيصالات الجديد ---
+@bot.message_handler(content_types=['photo'])
+def handle_receipt(message):
+    # إرسال الصورة للمدير (أنت)
+    bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=f"🔔 إيصال جديد من المستخدم: {message.chat.id}\nالاسم: {message.chat.first_name}")
+    # الرد على العميل
+    bot.reply_to(message, "✅ تم استلام إيصالك، جاري التحقق من قبل الإدارة.")
 
 bot.infinity_polling()
