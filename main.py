@@ -3,10 +3,10 @@ import telebot
 from telebot import types
 
 TOKEN = os.environ.get('BOT_TOKEN')
-ADMIN_ID = "5432340735" # <--- ضع رقم الأيدي الخاص بك هنا!
+ADMIN_ID = 5432340735  # <--- ضع رقم الأيدي الخاص بك هنا (بدون علامات تنصيص)
 bot = telebot.TeleBot(TOKEN)
 
-# بيانات البنوك المحدثة
+# بيانات البنوك
 BANK_DETAILS = {
     'الراجحي': "رقم: 378000010006080187221\nآيبان: SA14 8000 0378 6080 1018 7221\nصاحب الحساب: محمد حسن عبدالله عتين",
     'الأهلي': "رقم: 74300000606900\nآيبان: SA36 1000 0074 3000 0060 6900",
@@ -40,28 +40,20 @@ def show_bank_details(call):
     bank_name = call.data.split('_')[1]
     details = BANK_DETAILS[bank_name]
     msg = f"📋 تفاصيل الدفع:\n\nالبنك: {bank_name} 🏦\n{details}\n\n📌 بعد التحويل أرسل الإيصال (صورة) لهذا البوت."
-    bot.send_message(call.message.chat.id, 
-    # --- نظام استقبال الإيصالات مع أزرار القبول والرفض ---
+    bot.send_message(call.message.chat.id, msg)
+
 @bot.message_handler(content_types=['photo'])
 def handle_receipt(message):
-    ADMIN_ID = "ضع_رقم_الأيدي_الخاص_بك_هنا" # <--- ضع رقم الأيدي الخاص بك هنا!
-    
-    # إنشاء أزرار القبول والرفض
     markup = types.InlineKeyboardMarkup()
     markup.add(
         types.InlineKeyboardButton("✅ قبول", callback_data=f"accept_{message.chat.id}"),
         types.InlineKeyboardButton("❌ رفض", callback_data=f"reject_{message.chat.id}")
     )
-    
-    # إرسال الصورة لك مع الأزرار
     bot.send_photo(ADMIN_ID, message.photo[-1].file_id, 
                    caption=f"🔔 إيصال جديد من: {message.chat.first_name}\nID: {message.chat.id}", 
                    reply_markup=markup)
-    
-    # الرد على العميل
     bot.reply_to(message, "✅ تم استلام إيصالك، جاري التحقق من قبل الإدارة.")
 
-# إضافة دالة لتعمل الأزرار عند الضغط عليها
 @bot.callback_query_handler(func=lambda call: call.data.startswith(('accept_', 'reject_')))
 def handle_approval(call):
     action, user_id = call.data.split('_')
@@ -72,5 +64,4 @@ def handle_approval(call):
         bot.send_message(user_id, "عذراً، تم رفض طلبك.")
         bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption="تم رفض الطلب ❌")
 
-# تشغيل البوت
 bot.infinity_polling()
