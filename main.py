@@ -26,7 +26,7 @@ bot = telebot.TeleBot(TOKEN)
 # تخزين مؤقت لبيانات العملاء
 user_store = {}
 
-# ملف تخزين المبيعات لإحصائيات دقيقة
+# ملف تخزين Mبيعات لإحصائيات دقيقة
 STATS_FILE = "sales_log.txt"
 
 # الحسابات البنكية التفصيلية
@@ -68,7 +68,7 @@ def log_sale(price):
 @bot.message_handler(commands=['ارباحي'])
 def show_statistics(message):
     if message.chat.id != ADMIN_ID:
-        return  # يتجاهل أي شخص آخر تماماً لحماية أرباحك
+        return  # يتجاهل أي شخص آخر لحماية خصوصيتك
         
     if not os.path.exists(STATS_FILE):
         with open(STATS_FILE, "w") as f:
@@ -213,7 +213,7 @@ def handle_receipt(message):
         
     bot.reply_to(message, "✅ تم استلام إيصالك بنجاح وجاري مراجعته والتحقق من قبل الإدارة.")
 
-# --- 9. نظام معالجة القبول أو الرفض + احتساب الأرباح تلقائياً ---
+# --- 9. نظام معالجة القبول أو الرفض الذكي (يدعم النص والملف والصور بكفاءة) ---
 @bot.callback_query_handler(func=lambda call: call.data.startswith(('accept_', 'reject_')))
 def handle_approval(call):
     data_split = call.data.split('_')
@@ -226,7 +226,7 @@ def handle_approval(call):
         num_price = PRODUCTS[prod_id]["num_price"]
         links = DELIVERY.get(prod_id, "لم يتم العثور على روابط، تواصل مع الإدارة.")
         
-        # تسجيل العملية في نظام الأرباح تلقائياً بمجرد ضغط "قبول"
+        # تسجيل العملية في نظام الأرباح
         log_sale(num_price)
         
         # رسالة الشكر والتسليم التلقائي للعميل
@@ -237,7 +237,11 @@ def handle_approval(call):
         )
         bot.send_message(user_id, success_client_msg)
         
-        bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption="تم قبول الطلب وتسليم الروابط وتحديث الإحصائيات بنجاح ✅")
+        # تحديث رسالة الإداري بأمان سواء كانت نصية أو ملف/صورة
+        try:
+            bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption="تم قبول الطلب وتسليم الروابط وتحديث الإحصائيات بنجاح ✅")
+        except:
+            bot.edit_message_text("تم قبول الطلب وتسليم الروابط وتحديث الإحصائيات بنجاح ✅", chat_id=call.message.chat.id, message_id=call.message.message_id)
         
         # تنبيه فوري للمالك
         try:
@@ -260,7 +264,12 @@ def handle_approval(call):
         
     else:
         bot.send_message(user_id, "❌ نعتذر منك، تم رفض إيصال التحويل المرفق لعدم وضوحه أو عدم وصول المبلغ. يرجى مراجعة الحوالة والمحاولة مجدداً.")
-        bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption="تم رفض طلب العميل ❌")
+        
+        # تحديث رسالة الإداري عند الرفض بأمان
+        try:
+            bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption="تم رفض طلب العميل ❌")
+        except:
+            bot.edit_message_text("تم رفض طلب العميل ❌", chat_id=call.message.chat.id, message_id=call.message.message_id)
 
-print("البوت شغال بالأمر السري الجديد /ارباحي ...")
+print("تم تأمين استقبال النصوص والملفات بنجاح...")
 bot.infinity_polling()
