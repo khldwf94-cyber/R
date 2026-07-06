@@ -26,7 +26,7 @@ bot = telebot.TeleBot(TOKEN)
 # تخزين مؤقت لبيانات العملاء
 user_store = {}
 
-# ملف تخزين Mبيعات لإحصائيات دقيقة
+# ملف تخزين المبيعات لإحصائيات دقيقة
 STATS_FILE = "sales_log.txt"
 
 # الحسابات البنكية التفصيلية
@@ -68,7 +68,7 @@ def log_sale(price):
 @bot.message_handler(commands=['ارباحي'])
 def show_statistics(message):
     if message.chat.id != ADMIN_ID:
-        return  # يتجاهل أي شخص آخر لحماية خصوصيتك
+        return  
         
     if not os.path.exists(STATS_FILE):
         with open(STATS_FILE, "w") as f:
@@ -131,14 +131,13 @@ def start(message):
     markup.add("💳 للشراء")
     bot.send_message(uid, welcome_msg, reply_markup=markup)
 
-# --- 5. التعامل مع زر للشراء ---
-@bot.message_handler(func=lambda message: True)
+# --- 5. التعامل مع زر للشراء وعرض المنتجات ---
+@bot.message_handler(func=lambda message: message.text == "💳 للشراء")
 def handle_text_buttons(message):
-    if message.text == "💳 للشراء":
-        markup = types.InlineKeyboardMarkup()
-        for key, item in PRODUCTS.items():
-            markup.add(types.InlineKeyboardButton(f"{key}- {item['name']} | {item['price']}", callback_data=f"prod_{key}"))
-        bot.send_message(message.chat.id, "📁 قائمة المنتجات المتوفرة، اختر طلبك لبدء التحويل والدفع:", reply_markup=markup)
+    markup = types.InlineKeyboardMarkup()
+    for key, item in PRODUCTS.items():
+        markup.add(types.InlineKeyboardButton(f"{key}- {item['name']} | {item['price']}", callback_data=f"prod_{key}"))
+    bot.send_message(message.chat.id, "📁 قائمة المنتجات المتوفرة، اختر طلبك لبدء التحويل والدفع:", reply_markup=markup)
 
 # --- 6. اختيار الغرض وعرض البنوك ---
 @bot.callback_query_handler(func=lambda call: call.data.startswith('prod_'))
@@ -181,12 +180,17 @@ def show_bank_details(call):
     )
     bot.send_message(uid, msg)
 
-# --- 8. استقبال الإثباتات وتوجيهها للمالك ---
+# --- 8. استقبال الإثباتات وتوجيهها للمالك (معدل ومؤمن تماماً) ---
 @bot.message_handler(content_types=['photo', 'text', 'document'])
 def handle_receipt(message):
     uid = message.chat.id
+    
+    # تجنب التداخل مع الأوامر الأساسية والأدمن
+    if message.text in ["💳 للشراء", "/start", "/ارباحي"]:
+        return
+
     if uid not in user_store or "bank" not in user_store[uid]:
-        bot.reply_to(message, "⚠️ يرجى الضغط أولاً على زر 💳 للشراء واختيار غرضك قبل إرسال الإثبات.")
+        bot.reply_to(message, "⚠️ يرجى الضغط أولاً على زر 💳 للشراء واختيار غرضك والبنك قبل إرسال الإثبات لكي يتعرف النظام على طلبك.")
         return
         
     prod_id = user_store[uid]["prod_id"]
@@ -204,16 +208,22 @@ def handle_receipt(message):
     
     info_caption = f"🔔 إيصال جديد للمراجعة:\n👤 العميل: {uname}\n🔗 اليوزر: {username}\n🆔 الأيدي: {uid}\n📦 الغرض المطلوب: {prod_name}\n🏦 البنك المختار: {bank_name}"
     
-    if message.content_type == 'photo':
-        bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=info_caption, reply_markup=markup)
-    elif message.content_type == 'document':
-        bot.send_document(ADMIN_ID, message.document.file_id, caption=info_caption, reply_markup=markup)
-    elif message.content_type == 'text':
-        bot.send_message(ADMIN_ID, f"{info_caption}\n\n📝 الإثبات النصي المستلم:\n{message.text}", reply_markup=markup)
+    try:
+        if message.content_type == 'photo':
+            bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=info_caption, reply_markup=markup)
+        elif message.content_type == 'document':
+            bot.send_document(ADMIN_ID, message.document.file_id, caption=info_caption, reply_markup=markup)
+        elif message.content_type == 'text':
+            bot.send_message(ADMIN_ID, f"{info_caption}\n\n📝 الإثبات النصي المستلم:\n{message.text}", reply_markup=markup)
         
-    bot.reply_to(message, "✅ تم استلام إيصالك بنجاح وجاري مراجعته والتحقق من قبل الإدارة.")
+        # رد فوري للزبون لتأكيد الاستلام
+        bot.reply_to(message, "✅ تم استلام إيصالك بنجاح وجاري مراجعته والتحقق من قبل الإدارة.")
+    except Exception as e:
+        # حل بديل سريع إذا فشل الإرسال المتقدم لضمان عدم توقف البوت
+        bot.send_message(ADMIN_ID, f"{info_caption}\n⚠️ واجه البوت مشكلة في تحميل الملف، يرجى التحقق من العميل يدوياً.\nمحتوى النص إن وجد: {message.text if message.text else 'ملف/صورة'}", reply_markup=markup)
+        bot.reply_to(message, "✅ تم إشعار الإدارة بطلبك، جاري المراجعة.")
 
-# --- 9. نظام معالجة القبول أو الرفض الذكي (يدعم النص والملف والصور بكفاءة) ---
+# --- 9. نظام معالجة القبول أو الرفض الذكي ---
 @bot.callback_query_handler(func=lambda call: call.data.startswith(('accept_', 'reject_')))
 def handle_approval(call):
     data_split = call.data.split('_')
@@ -226,10 +236,8 @@ def handle_approval(call):
         num_price = PRODUCTS[prod_id]["num_price"]
         links = DELIVERY.get(prod_id, "لم يتم العثور على روابط، تواصل مع الإدارة.")
         
-        # تسجيل العملية في نظام الأرباح
         log_sale(num_price)
         
-        # رسالة الشكر والتسليم التلقائي للعميل
         success_client_msg = (
             f"شكرا على ثقتك فينا ❤️\n\n"
             f"📦 الغرض الذي طلبته:\n{prod_name}\n\n"
@@ -237,13 +245,14 @@ def handle_approval(call):
         )
         bot.send_message(user_id, success_client_msg)
         
-        # تحديث رسالة الإداري بأمان سواء كانت نصية أو ملف/صورة
         try:
             bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption="تم قبول الطلب وتسليم الروابط وتحديث الإحصائيات بنجاح ✅")
         except:
-            bot.edit_message_text("تم قبول الطلب وتسليم الروابط وتحديث الإحصائيات بنجاح ✅", chat_id=call.message.chat.id, message_id=call.message.message_id)
+            try:
+                bot.edit_message_text("تم قبول الطلب وتسليم الروابط وتحديث الإحصائيات بنجاح ✅", chat_id=call.message.chat.id, message_id=call.message.message_id)
+            except:
+                pass
         
-        # تنبيه فوري للمالك
         try:
             client_chat = bot.get_chat(user_id)
             c_username = f"@{client_chat.username}" if client_chat.username else "لا يوجد يوزر"
@@ -265,11 +274,13 @@ def handle_approval(call):
     else:
         bot.send_message(user_id, "❌ نعتذر منك، تم رفض إيصال التحويل المرفق لعدم وضوحه أو عدم وصول المبلغ. يرجى مراجعة الحوالة والمحاولة مجدداً.")
         
-        # تحديث رسالة الإداري عند الرفض بأمان
         try:
             bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption="تم رفض طلب العميل ❌")
         except:
-            bot.edit_message_text("تم رفض طلب العميل ❌", chat_id=call.message.chat.id, message_id=call.message.message_id)
+            try:
+                bot.edit_message_text("تم رفض طلب العميل ❌", chat_id=call.message.chat.id, message_id=call.message.message_id)
+            except:
+                pass
 
-print("تم تأمين استقبال النصوص والملفات بنجاح...")
+print("تم إصلاح نظام استقبال الإيصالات وتأمينه بالكامل...")
 bot.infinity_polling()
