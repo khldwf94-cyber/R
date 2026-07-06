@@ -49,21 +49,21 @@ DELIVERY = {
     '6': "✅ شكراً لثقتك بمتجرنا!\n1. بوت الحماية: @N7L_STORE_bot\n2. https://t.me/+ZQQxOF8TELtiMTQ0"
 }
 
-# --- 3. أمر تشغيل البوت والترحيب بزر واحد كبير فقط ---
+# --- 3. أمر تشغيل البوت والترحيب بزر الشراء فقط ---
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("🛒 الشراء والمنتجات")  # زر واحد كبير فقط بالأسفل
-    bot.send_message(message.chat.id, "🐝 نورت متجر N7L STORE\n\nاضغط على الزر بالأسفل لمشاهدة المنتجات وبدء الشراء:", reply_markup=markup)
+    markup.add("💳 للشراء")  # زر واحد كبير ومباشر بالأسفل
+    bot.send_message(message.chat.id, "نورت متجر N7L STORE\n\nاضغط على زر الشراء بالأسفل لمشاهدة المنتجات وبدء الطلب:", reply_markup=markup)
 
-# --- 4. التعامل مع زر الشراء والمنتجات ---
+# --- 4. التعامل مع زر للشراء ---
 @bot.message_handler(func=lambda message: True)
 def handle_text_buttons(message):
-    if message.text == "🛒 الشراء والمنتجات":
+    if message.text == "💳 للشراء":
         markup = types.InlineKeyboardMarkup()
         for key, value in PRODUCTS.items():
             markup.add(types.InlineKeyboardButton(value, callback_data=f"prod_{key}"))
-        bot.send_message(message.chat.id, "📁 قائمة المنتجات والخدمات المتوفرة الحين، اختر طلبك:", reply_markup=markup)
+        bot.send_message(message.chat.id, "📁 قائمة المنتجات المتوفرة، اختر طلبك لبدء التحويل والدفع:", reply_markup=markup)
 
 # --- 5. خطوات اختيار المنتج والبنك والإيصال ---
 @bot.callback_query_handler(func=lambda call: call.data.startswith('prod_'))
@@ -83,7 +83,7 @@ def show_bank_details(call):
 @bot.message_handler(content_types=['photo'])
 def handle_receipt(message):
     if message.chat.id not in user_data:
-        bot.reply_to(message, "يرجى اختيار المنتج أولاً بالضغط على 🛒 الشراء والمنتجات")
+        bot.reply_to(message, "يرجى الضغط أولاً على زر 💳 للشراء واختيار غرضك")
         return
     markup = types.InlineKeyboardMarkup()
     markup.add(
@@ -93,7 +93,7 @@ def handle_receipt(message):
     bot.send_photo(ADMIN_ID, message.photo[-1].file_id, 
                    caption=f"🔔 إيصال جديد من {message.chat.first_name}\nالطلب: {PRODUCTS[user_data[message.chat.id]]}", 
                    reply_markup=markup)
-    bot.reply_to(message, "✅ تم استلام إيصالك بنجاح. جاري مراجعته وتدقيقه من قبل الإدارة، ستصلك الروابط فوراً عند القبول.")
+    bot.reply_to(message, "✅ تم استلام إيصالك بنجاح. جاري مراجعته من قبل الإدارة، ستصلك الروابط فوراً عند القبول.")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith(('accept_', 'reject_')))
 def handle_approval(call):
@@ -103,8 +103,8 @@ def handle_approval(call):
         bot.send_message(user_id, DELIVERY.get(product_id, "تم قبول طلبك بنجاح!"))
         bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption="تم تسليم الروابط للعميل بنجاح ✅")
     else:
-        bot.send_message(user_id, "عذراً، تم رفض طلبك بسبب عدم وضوح الإيصال أو عدم اكتمال عملية التحويل. يرجى التواصل مع الدعم الفني.")
+        bot.send_message(user_id, "عذراً، تم رفض طلبك بسبب عدم وضوح الإيصال أو عدم اكتمال عملية التحويل.")
         bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption="تم رفض إيصال العميل ❌")
 
-print("البوت شغال بزر الشراء والمنتجات فقط...")
+print("البوت شغال مجاناً وبزر شراء مباشر بدون إضافات...")
 bot.infinity_polling()
