@@ -64,15 +64,15 @@ def log_sale(price):
     with open(STATS_FILE, "a") as f:
         f.write(f"{today_str},{price}\n")
 
-# --- 3. أمر الإحصائيات السري للمالك فقط ---
-@bot.message_handler(commands=['stats'])
+# --- 3. أمر الإحصائيات السري الجديد للمالك فقط ---
+@bot.message_handler(commands=['ارباحي'])
 def show_statistics(message):
     if message.chat.id != ADMIN_ID:
-        return  # تجاهل الأمر تماماً إذا لم يكن المالك
+        return  # يتجاهل أي شخص آخر تماماً لحماية أرباحك
         
     if not os.path.exists(STATS_FILE):
-        bot.reply_to(message, "📊 لا توجد مبيعات مسجلة حتى الآن.")
-        return
+        with open(STATS_FILE, "w") as f:
+            pass
         
     today = datetime.now().date()
     one_week_ago = today - timedelta(days=7)
@@ -85,19 +85,22 @@ def show_statistics(message):
     with open(STATS_FILE, "r") as f:
         for line in f:
             line = line.strip()
-            if not line:
+            if not line or ',' not in line:
                 continue
             date_str, price_str = line.split(',')
-            sale_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            price = int(price_str)
-            
-            total_revenue += price
-            total_orders += 1
-            
-            if sale_date == today:
-                today_revenue += price
-            if sale_date >= one_week_ago:
-                week_revenue += price
+            try:
+                sale_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                price = int(price_str)
+                
+                total_revenue += price
+                total_orders += 1
+                
+                if sale_date == today:
+                    today_revenue += price
+                if sale_date >= one_week_ago:
+                    week_revenue += price
+            except:
+                continue
                 
     stats_msg = (
         f"📊 **إحصائيات وأرباح متجر N7L STORE**\n\n"
@@ -259,5 +262,5 @@ def handle_approval(call):
         bot.send_message(user_id, "❌ نعتذر منك، تم رفض إيصال التحويل المرفق لعدم وضوحه أو عدم وصول المبلغ. يرجى مراجعة الحوالة والمحاولة مجدداً.")
         bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption="تم رفض طلب العميل ❌")
 
-print("البوت شغال مع نظام الأرباح الذكي والمجاني...")
+print("البوت شغال بالأمر السري الجديد /ارباحي ...")
 bot.infinity_polling()
