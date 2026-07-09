@@ -1,73 +1,47 @@
-import os
 import telebot
-from flask import Flask
+from telebot import types
 
-# إعدادات بوت الشراء N7L Store
-TOKEN = "7330541999:AAFlV4eXun4U80vY4YWhZmsjUqGOfR9K_rM"
-ADMIN_ID = 5650125883  # الآيدي الخاص بك كأدمن للمبيعات
-STATS_FILE = "sales_log.txt"
+# توكن البوت
+TOKEN = "8866438689:AAGAE2JvglNmRwarNegJ6Xu8zyQysXB1ZPk"
+ADMIN_ID = 5432340735  # الآيدي حقك
 
 bot = telebot.TeleBot(TOKEN)
-app = Flask(__name__)
 
-# الحسابات البنكية التفصيلية لعمليات الشراء
-BANK_DETAILS = """
-🏦 مصرف الراجحي:
-اسم الحساب: متجر N7L الرقمي
-رقم الحساب: 247608010041234
-الآيبان: SA73050000247608010041234
-
-🏦 بنك STC Pay:
-رقم المحفظة: 0551234567
-"""
-
-@app.route('/')
-def index():
-    return "N7L Purchase Bot is Running Successfully!"
-
-# دالة لتسجيل عمليات الشراء
-def log_sale(price):
-    current_total = 0
-    if os.path.exists(STATS_FILE):
-        with open(STATS_FILE, "r") as f:
-            content = f.read().strip()
-            if content.isdigit():
-                current_total = int(content)
-    
-    current_total += price
-    with open(STATS_FILE, "w") as f:
-        f.write(str(current_total))
-
-# أمر عرض الأرباح والإحصائيات (للأدمن فقط بكود إنجليزي لضمان استقرار السيرفر)
-@bot.message_handler(commands=['my_stats'])
-def show_statistics(message):
-    if str(message.chat.id) != str(ADMIN_ID):
-        return
-    
-    current_total = 0
-    if os.path.exists(STATS_FILE):
-        with open(STATS_FILE, "r") as f:
-            content = f.read().strip()
-            if content.isdigit():
-                current_total = int(content)
-                
-    bot.reply_to(message, f"📊 إحصائيات متجر N7L:\n\n💰 إجمالي المبيعات والأرباح: {current_total} ريال")
-
-# أمر الشراء وبداية العملية للزبون
+# دالة الترحيب
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    welcome_text = (
-        "مرحباً بك في بوت الشراء لمتجر N7L Store! 🛒\n\n"
-        "لإتمام عملية شراء المودات والتحقق، يرجى اتباع التعليمات المرسلة لك."
-    )
-    bot.reply_to(message, welcome_text)
+    markup = types.InlineKeyboardMarkup()
+    btn = types.InlineKeyboardButton("🛒 قائمة المنتجات", callback_data="products")
+    markup.add(btn)
+    bot.reply_to(message, "👋 نورت متجر نحل N7L\nالاسم: " + message.from_user.first_name + "\nالايدي: " + str(message.from_user.id), reply_markup=markup)
 
-# تشغيل الـ Dummy Server لتخطي فحص المنافذ في Render ويظل البوت شغال 24 ساعة
-def run_dummy_server():
-    import threading
-    threading.Thread(target=lambda: app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000))), daemon=True).start()
+# عرض المنتجات
+@bot.callback_query_handler(func=lambda call: call.data == "products")
+def show_products(call):
+    text = "📦 قائمة المنتجات المتوفرة:\n\n١- محاكي الحوادث.. ٢٠ ⃁\n٢- شرح تركيب المودات.. ١٠ ⃁\n٣- بكج مودات مدفوعه.. ٤٥ ⃁\n٤- لعبه سونرنر.. ١٥ ⃁\n٥- بكج محاكي حوادث (كامل).. ٣٥ ⃁\n٦- بكج لعبتين محاكي.. ٤٠ ⃁"
+    markup = types.InlineKeyboardMarkup()
+    for i in range(1, 7):
+        markup.add(types.InlineKeyboardButton(f"اختيار غرض {i}", callback_data=f"buy_{i}"))
+    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup)
 
-if __name__ == "__main__":
-    run_dummy_server()
-    print("🤖 Purchase Bot is polling now...")
-    bot.infinity_polling()
+# اختيار البنك
+@bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
+def choose_bank(call):
+    product_id = call.data.split("_")[1]
+    text = "🏦 اختر البنك للتحويل:"
+    markup = types.InlineKeyboardMarkup()
+    banks = ["الراجحي", "الاهلي", "STC", "برق", "يو باي"]
+    for bank in banks:
+        markup.add(types.InlineKeyboardButton(bank, callback_data=f"bank_{bank}_{product_id}"))
+    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+# تفاصيل الدفع
+@bot.callback_query_handler(func=lambda call: call.data.startswith("bank_"))
+def show_payment(call):
+    data = call.data.split("_")
+    bank_name = data[1]
+    bot.send_message(call.message.chat.id, f"📋 تفاصيل الدفع لـ {bank_name}\n\n📌 بعد إتمام التحويل أرسل لقطة الشاشة هنا للتفعيل.")
+    # تنبيه للأدمن
+    bot.send_message(ADMIN_ID, f"🔔 طلب جديد!\nالمستخدم: {call.from_user.username}\nالايدي: {call.from_user.id}\nالغرض: {data[2]}\nالبنك: {bank_name}")
+
+bot.infinity_polling()
