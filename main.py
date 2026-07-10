@@ -4,19 +4,20 @@ import telebot
 from telebot import types
 from flask import Flask
 
-# التوكن والبيانات الأساسية
-TOKEN = "8866438689:AAGAE2JvglNmRwarNegJ6Xu8zyQysXB1ZPk"
-ADMIN_ID = 5432340735  # آيدي المالك
+# 1. إعداد توكن بوت الشراء (تأكد من وضع توكن بوت الشراء الخاص بك هنا)
+# يفضل جلب التوكن عبر Environment Variables من ريندر بـ os.environ.get("TOKEN")
+TOKEN = "8866438689:AAGAE2JvglNmRwarNegJ6Xu8zyQysXB1ZPk" 
+ADMIN_ID = 5432340735  # آيدي حسابك لإرسال الإشعارات والتحكم
 bot = telebot.TeleBot(TOKEN)
 
-# إعداد سيرفر الويب لتخطي فحص ريندر (Render) وتثبيت التشغيل
+# سيرفر ويب مصغر Flask متوافق مع شروط التشغيل على Render لمنع توقف البوت
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "N7L Store Bot is running 24/7!"
+    return "N7L Store Purchasing Bot is Active!"
 
-# 1. بداية تشغيل البوت والترحيب (الاسم، الآيدي، اليوزر)
+# 2. أمر البداية وعرض تفاصيل العميل والترحيب به
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     user_id = message.from_user.id
@@ -35,7 +36,7 @@ def send_welcome(message):
     )
     bot.reply_to(message, welcome_text, reply_markup=markup)
 
-# 2. عرض المنتجات الستة والأسعار بعد ضغط "للشراء"
+# 3. عرض قائمة المنتجات الستة والأسعار
 @bot.callback_query_handler(func=lambda call: call.data == "show_products")
 def show_products(call):
     text = (
@@ -55,11 +56,10 @@ def show_products(call):
     
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup)
 
-# 3. اختيار البنك بعد تحديد الغرض
+# 4. قائمة البنوك المتوفرة للسداد
 @bot.callback_query_handler(func=lambda call: call.data.startswith("prod_"))
 def choose_bank(call):
     _, prod_num, price = call.data.split("_")
-    
     text = "البنوك المتوفرة لتسديد المبلغ عبرها:\nانواع البنوك 👇:"
     
     markup = types.InlineKeyboardMarkup()
@@ -71,17 +71,16 @@ def choose_bank(call):
     
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup)
 
-# 4. تفاصيل الدفع حسب البنك المختار مع إدخال السعر تلقائياً
+# 5. عرض تفاصيل الحسابات البنكية بناءً على اختيار العميل مع إدخال السعر المطلوب تلقائياً
 @bot.callback_query_handler(func=lambda call: call.data.startswith("bank_"))
 def payment_details(call):
     _, bank, prod_num, price = call.data.split("_")
-    
-    # تفاصيل البنوك والبيانات
     details = ""
+    
     if bank == "rajhi":
         details = (
             f"البنك: بنك الراجحي 🏦\n"
-            f"رقم: 378000010006080187221\n"
+            f"رقم الحساب: 378000010006080187221\n"
             f"الايبان: SA14 8000 0378 6080 1018 7221\n"
             f"اسم صاحب الحساب: محمد حسن عبدالله عتين\n"
             f"المبلغ: {price} ريال"
@@ -91,6 +90,7 @@ def payment_details(call):
             f"البنك: بنك STC 📱\n"
             f"رقم حساب: 1023327364\n"
             f"الايبان: SA5278000000001023327364\n"
+            f"اسم صاحب الحساب: محمد حسن عبدالله عتين\n"
             f"المبلغ: {price} ريال"
         )
     elif bank == "ahli":
@@ -98,12 +98,14 @@ def payment_details(call):
             f"البنك: بنك الاهلي 🏦\n"
             f"رقم حساب: 74300000606900\n"
             f"رقم حساب الدولي: SA36 1000 0074 3000 0060 6900\n"
+            f"اسم صاحب الحساب: محمد حسن عبدالله عتين\n"
             f"المبلغ: {price} ريال"
         )
     elif bank == "upay":
         details = (
             f"البنك: يو باي 💳\n"
             f"الايبان: SA9480200841178222121011\n"
+            f"اسم صاحب الحساب: محمد حسن عبدالله عتين\n"
             f"المبلغ: {price} ريال"
         )
     elif bank == "barq":
@@ -111,6 +113,7 @@ def payment_details(call):
             f"البنك: برق ⚡\n"
             f"رقم حساب: 991103822484251\n"
             f"الايبان: SA0530100991103822484251\n"
+            f"اسم صاحب الحساب: محمد حسن عبدالله عتين\n"
             f"المبلغ: {price} ريال"
         )
 
@@ -119,19 +122,17 @@ def payment_details(call):
         f"📌 بعد إتمام التحويل أرسل لقطة شاشة الحوالة او رساله الايصال او ملف الايصال هنا.\n"
         f"⏳ سيتم التفعيل بعد تحقق لطلبك ."
     )
-    
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id)
     
-    # تحويل حالة المستخدم لانتظار الإثبات وتخزين الغرض المطلوب
+    # تحويل العميل لانتظار الإثبات وتخزين تفاصيل الطلب
     bot.register_next_step_handler(call.message, receive_proof, prod_num, price, bank)
 
-# 5. استقبال الإثبات (صورة، نص، ملف) وإرسال التنبيه الفوري للمالك
+# 6. استقبال إثبات الدفع وإعادة توجيهه فوراً للأدمن
 def receive_proof(message, prod_num, price, bank):
     user_id = message.from_user.id
     username = f"@{message.from_user.username}" if message.from_user.username else "لا يوجد يوزر"
     first_name = message.from_user.first_name
     
-    # إرسال التنبيه للمالك أولاً
     admin_alert = (
         f"🔔 وصلك إثبات دفع جديد لطلب!\n\n"
         f"👤 العميل: {first_name}\n"
@@ -143,27 +144,24 @@ def receive_proof(message, prod_num, price, bank):
     )
     bot.send_message(ADMIN_ID, admin_alert)
     
-    # إعادة توجيه الإثبات (سواء صورة، ملف، أو نص) للمالك مباشرة للتحقق منه
+    # توجيه المرفقات للأدمن
     if message.content_type == 'photo':
         bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=f"📸 إثبات صورة من العميل {user_id}")
     elif message.content_type == 'document':
         bot.send_document(ADMIN_ID, message.document.file_id, caption=f"📄 إثبات ملف من العميل {user_id}")
     elif message.content_type == 'text':
-        bot.send_message(ADMIN_ID, f"✍️ إثبات نصي أو رسالة من العميل {user_id}:\n{message.text}")
+        bot.send_message(ADMIN_ID, f"✍️ إثبات نصي من العميل {user_id}:\n{message.text}")
         
-    # خيارات التحكم للمالك (قبول أو رفض) الحوالة بضغطة زر
     markup = types.InlineKeyboardMarkup()
     markup.add(
-        types.InlineKeyboardButton("✅ قبول", callback_data=f"approve_{user_id}_{prod_num}"),
-        types.InlineKeyboardButton("❌ رفض", callback_data=f"reject_{user_id}")
+        types.InlineKeyboardButton("✅ قبول وتفعيل", callback_data=f"buyapprove_{user_id}_{prod_num}"),
+        types.InlineKeyboardButton("❌ رفض الطلب", callback_data=f"buyreject_{user_id}")
     )
-    bot.send_message(ADMIN_ID, "⚙️ التحكم في الطلب:", reply_markup=markup)
-    
-    # تأكيد الاستلام للزبون والانتظار
-    bot.reply_to(message, "⏳ تم استلام إثبات الدفع وجاري التحقق من طلبك من قبل الإدارة...")
+    bot.send_message(ADMIN_ID, "⚙️ التحكم في الطلب البنكي الحالي:", reply_markup=markup)
+    bot.reply_to(message, "⏳ تم استلام إثبات الدفع، جاري مراجعة الحوالة وتفعيل حسابك من قبل الإدارة...")
 
-# 6. معالجة قبول أو رفض الأدمن للطلب وإرسال الروابط وشكر الزبون تلقائياً
-@bot.callback_query_handler(func=lambda call: call.data.startswith(("approve_", "reject_")))
+# 7. معالجة قبول أو رفض الأدمن
+@bot.callback_query_handler(func=lambda call: call.data.startswith(("buyapprove_", "buyreject_")))
 def handle_admin_decision(call):
     if call.message.chat.id != ADMIN_ID:
         return
@@ -172,43 +170,28 @@ def handle_admin_decision(call):
     action = data[0]
     target_user_id = int(data[1])
     
-    if action == "approve":
+    if action == "buyapprove":
         prod_num = data[2]
-        thanks_msg = f"شكرا على ثقتك فينا ❤️\n🎁 الغرض الذي طلبته:"
+        # هنا توجه الزبون تلقائياً إلى رابط موقعك في s1 الذي قمت بإنشائه في Render
+        # استبدل النطاق التالي برابط الويب الفعلي الخاص بـ s1 لديك في Render ليقوم العميل بالتحقق عبر بوت الحماية
+        s1_website_url = "https://s1-your-service-link.onrender.com" 
         
-        # تسليم الروابط بناءً على رقم الغرض المشتري
-        if prod_num == "1":
-            links = "‏١- https://t.me/+tPBT1R66qx43NGQ0\n‏٢- https://t.me/+Ha82GPmaPJ05Yzg0\n‏٣- https://t.me/+3wCL0hf-hbw0YTlk"
-            bot.send_message(target_user_id, f"{thanks_msg}\n{links}")
-        elif prod_num == "2":
-            links = "‏١- https://t.me/+Ha82GPmaPJ05Yzg0\n‏٢- https://t.me/+3wCL0hf-hbw0YTlk"
-            bot.send_message(target_user_id, f"{thanks_msg}\n{links}")
-        elif prod_num == "3":
-            links = "‏١- https://t.me/+YjIKDxJjhsw1MDY8\n٢- يوزر بوت الحماية: @N7L_STORE_bot"
-            bot.send_message(target_user_id, f"{thanks_msg}\n{links}")
-        elif prod_num == "4":
-            links = "‏١- https://t.me/+PLLXva6AXRs0YTRk"
-            bot.send_message(target_user_id, f"{thanks_msg}\n{links}")
-        elif prod_num == "5":
-            links = "‏١- https://t.me/+eRAj2HFhWTwzZDZk\n٢- يوزر بوت الحماية: @N7L_STORE_bot"
-            bot.send_message(target_user_id, f"{thanks_msg}\n{links}")
-        elif prod_num == "6":
-            links = "١- يوزر بوت الحماية: @N7L_STORE_bot\n٢- https://t.me/+ZQQxOF8TELtiMTQ0"
-            bot.send_message(target_user_id, f"{thanks_msg}\n{links}")
-            
-        bot.edit_message_text(f"✅ تم قبول طلب العميل {target_user_id} وتسليمه الروابط بنجاح.", call.message.chat.id, call.message.message_id)
-        # إشعار مالك لإتمام الطلب
-        bot.send_message(ADMIN_ID, f"📢 تنبيه: اكتمل طلب العميل {target_user_id} بنجاح.")
+        thanks_msg = (
+            f"🎉 شكراً على ثقتك بمتجرنا وتم تفعيل غرضك رقم ({prod_num}) بنجاح!\n\n"
+            f"🌐 للدخول إلى صفحة المودات والروابط s1 المحمية، يرجى فتح الرابط أدناه واستخدام آيدي حسابك للتحقق عبر بوت الحماية:\n"
+            f"{s1_website_url}"
+        )
+        bot.send_message(target_user_id, thanks_msg)
+        bot.edit_message_text(f"✅ تم تفعيل العميل {target_user_id} وتوجيهه لموقع s1.", call.message.chat.id, call.message.message_id)
         
-    elif action == "reject":
-        bot.send_message(target_user_id, "❌ المعذرة، تم رفض إثبات الدفع الخاص بك. يرجى التأكد من الحوالة والمحاولة مجدداً أو مراسلة المالك.")
+    elif action == "buyreject":
+        bot.send_message(target_user_id, "❌ المعذرة، تم رفض إثبات الدفع المرفق. يرجى التأكد من بيانات التحويل الصحيحة وإعادة إرسال الإيصال مجدداً.")
         bot.edit_message_text(f"❌ تم رفض طلب العميل {target_user_id}.", call.message.chat.id, call.message.message_id)
 
-# تشغيل خادم الويب والبوت معاً في خيوط منفصلة لثبات الاتصال
 def run_flask():
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5001))) # تشغيل على منفذ مختلف عن S1 لمنع التضارب
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()
-    print("🤖 N7L Store Bot starts polling now...")
-    bot.infinity_polling(timeout=15, long_polling_timeout=5)
+    print("🤖 N7L Purchasing Bot (R) is polling now...")
+    bot.infinity_polling()
